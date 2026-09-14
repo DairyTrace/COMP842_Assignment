@@ -1,0 +1,8 @@
+# Reinstalled with `npm install`; package-lock.json is committed instead.
+node_modules/
+
+npm-debug.log*
+.DS_Store
+
+# Note: dist/ is NOT build output here - it is the application source, served
+# as-is by scripts/serve.mjs. Do not add it, despite what Node templates assume.

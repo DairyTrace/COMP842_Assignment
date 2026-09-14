@@ -1,0 +1,16 @@
+{
+  "name": "dairy-spike",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "compile": "node scripts/compile.mjs"
+  },
+  "dependencies": {
+    "ethers": "6.17.0"
+  },
+  "devDependencies": {
+    "solc": "0.8.30"
+  }
+}

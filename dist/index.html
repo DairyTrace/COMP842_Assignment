@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DairyTrace · Course spike</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+
+  <section>
+    <h2>Consumer lookup</h2>
+    <p>Enter the final product batch ID.</p>
+    <form id="lookup">
+      <label>Product batch ID
+        <input name="id" type="number" min="1" required>
+      </label>
+      <button>Check batch</button>
+    </form>
+    <div id="result" aria-live="polite"></div>
+  </section>
+
+  <section>
+    <h2>Stakeholder workspace</h2>
+    <button id="connect">Connect MetaMask</button>
+    <p id="account">Wallet disconnected</p>
+    <p id="status" role="status"></p>
+    <p id="transaction"></p>
+
+    <!--
+      Every form below is hidden until Connect MetaMask reveals the ones the
+      account may use. Each form's id is the contract method app.js calls with it.
+      The role numbers match `enum Role` in contracts/DairyTrace.sol.
+    -->
+
+    <div id="adminActions" hidden>
+      <h3>Register stakeholder</h3>
+      <form id="register">
+        <label>Wallet address
+          <input name="address" required>
+        </label>
+        <label>Role
+          <select name="role">
+            <option value="1">Auditor</option>
+            <option value="2">Farm</option>
+            <option value="3">Processor</option>
+            <option value="4">Distributor</option>
+          </select>
+        </label>
+        <button>Register stakeholder</button>
+      </form>
+
+      <h3>Set stakeholder access</h3>
+      <form id="setActive">
+        <label>Wallet address
+          <input name="address" required>
+        </label>
+        <label>Access
+          <select name="active">
+            <option value="true">Enabled</option>
+            <option value="false">Disabled</option>
+          </select>
+        </label>
+        <button>Set stakeholder access</button>
+      </form>
+    </div>
+
+    <div id="auditorActions" hidden>
+      <h3>Certify farm</h3>
+      <form id="certifyFarm">
+        <label>Farm address
+          <input name="farm" required>
+        </label>
+        <label>Expiry (your local time)
+          <input name="until" type="datetime-local" required>
+        </label>
+        <label>Audit SHA-256 (0x + 64 hex digits)
+          <input name="hash" required>
+        </label>
+        <button>Certify farm</button>
+      </form>
+    </div>
+
+    <div id="farmActions" hidden>
+      <h3>Register milk lot</h3>
+      <form id="createMilk">
+        <label>Processor address
+          <input name="processor" required>
+        </label>
+        <label>Whole litres
+          <input name="litres" type="number" min="1" required>
+        </label>
+        <button>Register milk lot</button>
+      </form>
+    </div>
+
+    <div id="processorActions" hidden>
+      <h3>Pool into product</h3>
+      <form id="createProduct">
+        <label>Milk IDs, comma separated
+          <input name="ids" required>
+        </label>
+        <label>Distributor address
+          <input name="distributor" required>
+        </label>
+        <button>Pool into product</button>
+      </form>
+    </div>
+
+    <div id="distributorActions" hidden>
+      <h3>Confirm product received</h3>
+      <form id="receiveProduct">
+        <label>Product ID
+          <input name="id" type="number" min="1" required>
+        </label>
+        <button>Confirm product received</button>
+      </form>
+    </div>
+  </section>
+
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
