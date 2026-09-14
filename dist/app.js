@@ -154,17 +154,16 @@ $('connect').onclick = async () => {
     writeContract = new Contract(config.contractAddress, abi, signer);
 
     const isAdmin = (await contract.admin()).toLowerCase() === address.toLowerCase();
-    const isActive = await contract.active(address);
     const roleName = isAdmin ? 'Administrator' : ROLE_NAMES[Number(await contract.roles(address))];
 
-    $('account').textContent = `${address} · ${roleName}${!isAdmin && !isActive ? ' (inactive)' : ''}`;
+    $('account').textContent = `${address} · ${roleName}`;
 
     // Only show what this account may do.
     $('adminActions').hidden = !isAdmin;
-    $('auditorActions').hidden = !isActive || roleName !== 'Auditor';
-    $('farmActions').hidden = !isActive || roleName !== 'Farm';
-    $('processorActions').hidden = !isActive || roleName !== 'Processor';
-    $('distributorActions').hidden = !isActive || roleName !== 'Distributor';
+    $('auditorActions').hidden = roleName !== 'Auditor';
+    $('farmActions').hidden = roleName !== 'Farm';
+    $('processorActions').hidden = roleName !== 'Processor';
+    $('distributorActions').hidden = roleName !== 'Distributor';
   } catch (err) {
     $('status').textContent = errorText(err);
   }

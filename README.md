@@ -39,8 +39,11 @@ after you change and redeploy the contract.
 4. In MetaMask's network list, enable **Show test networks**, then select **Sepolia**.
 5. Get free test ETH from an Ethereum Sepolia faucet.
 6. Fund each account with a small amount of Sepolia coins.
-7. In Remix's File Explorer create `DairyTrace.sol`. Copy in the entire contents of `contracts/DairyTrace.sol`.
-8. Open **Solidity Compiler**. Select **0.8.30** to match the exact pragma. Under advanced configuration choose EVM **paris**, enable optimisation, and use **200 runs**. Compile `DairyTrace.sol`. In the compiler panel's **ABI** copy button, copy the interface and paste it over the contents of `dist/abi.json`.
+7. In Remix's File Explorer create `DairyTrace.sol`. Copy in the entire contents of `contracts/DairyTrace.sol`. Switch MetaMask account to Admin.
+8. Open **Solidity Compiler**. Select **0.8.30** to match the contract. Compile `DairyTrace.sol`. 
+9. In **Deploy** on Remix, select browswer extension as the environment drop down, then select MetaMask as the subdrop down.
+
+Under deploy, click the three dots next to DairyTract and click copy ABI. Paste it over the contents of `dist/abi.json`.
 9. Select **Admin** in MetaMask and **Sepolia** as the network.
 10. In Remix → **Deploy & Run Transactions**, choose **Browser Extension** and MetaMask. Approve the connection and verify the displayed account is Admin and the network is Sepolia.
 11. Select `DairyTrace` in the contract dropdown. Keep transaction **Value = 0**. Click **Deploy**, review MetaMask, and confirm.

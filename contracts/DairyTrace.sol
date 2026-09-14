@@ -22,12 +22,9 @@ contract DairyTrace {
     /// The admin holds no Role so whoever administers the system cannot also act as a farm or processor.
     address public immutable admin;
 
-    /// Permission checks two questions, needs yes for both.
-    ///   roles[x]  - what x is allowed to be
-    ///   active[x] - whether x is currently switched on
-    /// Lets the admin suspend a participant with setActive() without erasing their role.
+    /// What each address is allowed to be. Once registered, a role is permanent
+    /// for that address; there is no separate on/off switch.
     mapping(address => Role) public roles;
-    mapping(address => bool) public active;
 
     // ---------------------------------------------------------------------
     // Records
@@ -88,7 +85,6 @@ contract DairyTrace {
     /// transaction receipt to tell the user which record was just created.
     /// `indexed` parameters are the ones you can filter logs by.
     event Registered(address indexed account, Role role);
-    event ActiveChanged(address indexed account, bool enabled);
     event Certified(uint256 indexed id, address indexed farm, address indexed auditor);
     event MilkCreated(uint256 indexed id, address indexed farm, address indexed processor);
     event ProductCreated(uint256 indexed id, bool certified);
@@ -103,9 +99,8 @@ contract DairyTrace {
     // ---------------------------------------------------------------------
 
     /// Runs before the function body; `_` is where that body is spliced in.
-    /// Demands the exact role *and* an active account.
     modifier onlyRole(Role r) {
-        require(active[msg.sender] && roles[msg.sender] == r, "Wrong role or disabled");
+        require(roles[msg.sender] == r, "Wrong role");
         _;
     }
 
@@ -121,7 +116,6 @@ contract DairyTrace {
     /// Gives an address a role, once. Re-registering is refused rather than
     /// allowed to overwrite, because a participant's role is baked into records
     /// they have already created.
-    /// Use setActive() to suspend someone instead.
     function register(address account, Role role) external onlyAdmin {
         // Rejects the zero address, the admin itself (see the note on `admin`),
         // and Role.None, which would otherwise be a backdoor way to unregister.
@@ -129,18 +123,7 @@ contract DairyTrace {
         require(roles[account] == Role.None, "Already registered");
 
         roles[account] = role;
-        active[account] = true; // registering also switches the account on
         emit Registered(account, role);
-    }
-
-    /// Suspends or restores a participant. Their role and records are untouched,
-    /// so this is reversible: setActive(x, false) then setActive(x, true) returns
-    /// x to where it was.
-    function setActive(address account, bool enabled) external onlyAdmin {
-        require(roles[account] != Role.None, "Unknown account");
-
-        active[account] = enabled;
-        emit ActiveChanged(account, enabled);
     }
 
     // ---------------------------------------------------------------------
@@ -153,9 +136,9 @@ contract DairyTrace {
         external
         onlyRole(Role.Auditor)
     {
-        // The target must actually be a live farm, so a typo cannot certify
-        // a processor, an unknown address, or a suspended farm.
-        require(active[farm] && roles[farm] == Role.Farm, "Unknown farm");
+        // The target must actually be a registered farm, so a typo cannot
+        // certify a processor or an unknown address.
+        require(roles[farm] == Role.Farm, "Unknown farm");
         // An expiry in the past would be certified and expired at once
         require(validUntil > block.timestamp && evidenceHash != bytes32(0), "Invalid certificate");
 
@@ -167,7 +150,7 @@ contract DairyTrace {
 
     /// Farm registers a lot of raw milk and hands it to a named processor.
     function createMilk(address processor, uint256 litres) external onlyRole(Role.Farm) {
-        require(active[processor] && roles[processor] == Role.Processor, "Unknown processor");
+        require(roles[processor] == Role.Processor, "Unknown processor");
         require(litres > 0, "Zero volume");
 
         // The farm's certificate is resolved once, here, and stored on the lot. An expired certificate
@@ -189,7 +172,7 @@ contract DairyTrace {
     {
         // The upper bound keeps the loop below within a reasonable gas cost.
         require(ids.length > 0 && ids.length <= 20, "Use 1 to 20 lots");
-        require(active[distributor] && roles[distributor] == Role.Distributor, "Unknown distributor");
+        require(roles[distributor] == Role.Distributor, "Unknown distributor");
 
         uint256 total;          // litres accumulated across the inputs
         bool eligible = true;   // stays true only while every lot is certified
