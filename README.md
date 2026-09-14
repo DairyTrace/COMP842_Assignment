@@ -20,55 +20,6 @@ npm start         # serves http://localhost:5173
 - `scripts/serve.mjs`: small local web server.
 - `scripts/compile.mjs`: optional local compiler and ABI generation.
 - `package-lock.json`: dependency installation.
-
-## Reading `dist/abi.json`
-
-The ABI (Application Binary Interface) is the contract's interface written as JSON:
-the name, argument types and return types of every function and event. It is the
-translation table ethers.js needs, because the chain itself has no idea what
-"createMilk" means — it only accepts raw bytes. The ABI is what lets `app.js` write
-
-```js
-writeContract.createMilk(processorAddress, 100n)
-```
-
-and have it encoded into the right transaction, and it is equally what decodes the
-logs in the receipt back into readable event names in `newRecordIds()`.
-
-**Do not edit it by hand.** It is generated: `npm run compile` overwrites the whole
-file from `contracts/DairyTrace.sol`. JSON also has no comment syntax, so anything
-added would both be erased on the next compile and break the page's `.json()` parse.
-The commentary lives in the contract instead, which is the actual source of truth.
-
-A single entry looks like this:
-
-```json
-{
-  "type": "function",
-  "name": "createMilk",
-  "inputs": [
-    { "name": "processor", "type": "address", "internalType": "address" },
-    { "name": "litres",    "type": "uint256", "internalType": "uint256" }
-  ],
-  "outputs": [],
-  "stateMutability": "nonpayable"
-}
-```
-
-- `type` — `function`, `event`, or `constructor`. This file has 16, 6 and 1 of each.
-- `inputs` / `outputs` — parameters in declaration order. `type` is the on-chain type
-  used for encoding; `internalType` is what the Solidity source called it, which is
-  where you see `enum DairyTrace.Role` rather than the `uint8` actually sent.
-- `stateMutability` — `view` means reading only: free, no wallet, no transaction
-  (`getProduct`, `milk`, `certificates`). `nonpayable` means it writes to the chain,
-  so it costs gas and must be signed. `payable` would mean it also accepts ETH;
-  nothing here is payable.
-- On events, an `indexed` parameter is one you can filter logs by.
-
-If the ABI and the deployed contract disagree, calls fail or return nonsense, so
-recompile after any change to the contract — and redeploy, since the contract already
-on Sepolia keeps running the code it was deployed with.
-
 ## Setup Steps:
 
 1. Run `npm start` and open http://localhost:5173.
@@ -121,4 +72,3 @@ The UI only shows actions for the selected role. The contract independently enfo
 
 2. Copy the 64 hex characters, excluding the filename. Prefix them with `0x` for the certificate form.
 3. Connect as Auditor. In **Certify farm**, enter the farm's address, an expiry tomorrow or later, and that digest. Submit.
-# COMP842_Assignment
