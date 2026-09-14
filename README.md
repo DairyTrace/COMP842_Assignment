@@ -3,10 +3,11 @@
 
 ```bash
 npm install
-npm run compile   # compiles the contract, writes dist/abi.json
-npm start         # serves http://localhost:5173
-
+npm start   # serves http://localhost:5173
 ```
+
+`dist/abi.json` is already committed. Only regenerate it (from Remix, see Setup step 8 below)
+after you change and redeploy the contract.
 
 
 ## File Structure
@@ -16,9 +17,8 @@ npm start         # serves http://localhost:5173
 - `dist/app.js`: connects the page to the contract.
 - `dist/style.css`: styling.
 - `dist/config.json`: deployment address and public Sepolia read RPC.
-- `dist/abi.json`: generated contract interface.
+- `dist/abi.json`: contract interface, copied from Remix's compiler panel after each deploy.
 - `scripts/serve.mjs`: small local web server.
-- `scripts/compile.mjs`: optional local compiler and ABI generation.
 - `package-lock.json`: dependency installation.
 ## Setup Steps:
 
@@ -39,7 +39,7 @@ npm start         # serves http://localhost:5173
 5. Get free test ETH from an Ethereum Sepolia faucet.
 6. Fund each account with a small amount of Sepolia coins.
 7. In Remix's File Explorer create `DairyTrace.sol`. Copy in the entire contents of `contracts/DairyTrace.sol`.
-8. Open **Solidity Compiler**. Select **0.8.30** to match the exact pragma. Under advanced configuration choose EVM **paris**, enable optimisation, and use **200 runs**. Compile `DairyTrace.sol`.
+8. Open **Solidity Compiler**. Select **0.8.30** to match the exact pragma. Under advanced configuration choose EVM **paris**, enable optimisation, and use **200 runs**. Compile `DairyTrace.sol`. In the compiler panel's **ABI** copy button, copy the interface and paste it over the contents of `dist/abi.json` in your editor.
 9. Select **Admin** in MetaMask and **Sepolia** as the network.
 10. In Remix → **Deploy & Run Transactions**, choose **Browser Extension** and MetaMask. Approve the connection and verify the displayed account is Admin and the network is Sepolia.
 11. Select `DairyTrace` in the contract dropdown. Keep transaction **Value = 0**. Click **Deploy**, review MetaMask, and confirm.

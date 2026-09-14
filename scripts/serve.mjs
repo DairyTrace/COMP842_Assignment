@@ -36,6 +36,6 @@ http.createServer(async (req, res) => {
     res.end(body);
   } catch {
     res.writeHead(500);
-    res.end('Cannot load file. Run npm install and npm run compile.');
+    res.end('Cannot load file. Run npm install.');
   }
 }).listen(PORT, 'localhost', () => console.log(`DairyTrace: http://localhost:${PORT}`));

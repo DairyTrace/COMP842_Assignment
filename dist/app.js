@@ -114,7 +114,7 @@ function onSubmit(formId, send) {
       link.target = '_blank';
       link.rel = 'noopener';
       $('transaction').append(link);
-      $('status').textContent = 'Transaction submitted; waiting for confirmation…';
+      $('status').textContent = 'Transaction submitted. Please wait for confirmation.';
 
       const receipt = await tx.wait();
       $('status').textContent = ['Confirmed.', ...newRecordIds(receipt)].join(' ');
@@ -130,17 +130,17 @@ const toUnixTime = localDateTime => Math.floor(new Date(localDateTime).getTime()
 const toIdList = text => text.split(',').map(id => BigInt(id.trim()));
 
 onSubmit('register', v => writeContract.register(v.address, Number(v.role)));
-onSubmit('setActive', v => writeContract.setActive(v.address, v.active === 'true'));
 onSubmit('certifyFarm', v => writeContract.certifyFarm(v.farm, toUnixTime(v.until), v.hash));
 onSubmit('createMilk', v => writeContract.createMilk(v.processor, BigInt(v.litres)));
 onSubmit('createProduct', v => writeContract.createProduct(toIdList(v.ids), v.distributor));
 onSubmit('receiveProduct', v => writeContract.receiveProduct(BigInt(v.id)));
 
+// Connect MetaMask account
 $('connect').onclick = async () => {
   try {
     const contract = await getReadContract();
     if (!window.ethereum) {
-      throw Error('Install MetaMask in this browser for stakeholder actions. Consumers need no wallet.');
+      throw Error('Install MetaMask in this browser for stakeholder actions.');
     }
 
     await window.ethereum.request({ method: 'eth_requestAccounts' });
