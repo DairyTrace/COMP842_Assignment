@@ -76,79 +76,64 @@ async function lookupBatch(id) {
   const out = [];
 
   // --- the verdict, kept in the original wording ---
-  const verdict = el('h3', product.certified ? 'pass' : 'fail',
+  out.push(el('h3', product.certified ? 'pass' : 'fail',
     product.certified
       ? 'Eligible under the demo fair-trade rule'
-      : 'Not eligible under the demo fair-trade rule');
-  out.push(verdict);
+      : 'Not eligible under the demo fair-trade rule'));
 
   out.push(el('p', 'headline',
-    `Product ${id} · ${product.litres} litres · pooled on ${asDate(product.createdAt)}`));
+    `Product ${id} · ${product.litres} litres · pooled ${asDate(product.createdAt)}`));
 
-  // --- what the verdict rests on, in a sentence ---
-  const certifiedCount = lots.filter(lot => lot.certificateId !== 0n).length;
+  // --- one sentence covering where it came from and whether it was audited ---
+  const lotWord = `${lots.length} milk lot${lots.length === 1 ? '' : 's'}`;
+  const farmWord = `${farms.length} farm${farms.length === 1 ? '' : 's'}`;
+  const uncertified = lots.filter(lot => lot.certificateId === 0n).length;
+
+  // Every audit covering this batch expires at some point; quote the earliest.
+  const expiries = [...certs.values()].map(cert => Number(cert.validUntil));
+  const soonest = expiries.length ? asDate(Math.min(...expiries)) : null;
+
   out.push(el('p', 'summary', product.certified
-    ? `Pooled from ${lots.length} milk lot${lots.length === 1 ? '' : 's'} across ` +
-      `${farms.length} farm${farms.length === 1 ? '' : 's'}. Every lot carried a valid ` +
-      `farm audit at the moment it was registered.`
-    : `Pooled from ${lots.length} milk lot${lots.length === 1 ? '' : 's'}, of which ` +
-      `${lots.length - certifiedCount} had no valid farm audit when registered. ` +
-      `One uncertified lot makes the whole batch ineligible.`));
+    ? `Made from ${lotWord} from ${farmWord}, each covered by a farm audit valid until ${soonest}.`
+    : `Made from ${lotWord} from ${farmWord}. ${uncertified} had no valid farm audit when registered, ` +
+      `and one uncertified lot makes the whole batch ineligible.`));
 
-  // --- has anyone signed for it? ---
   out.push(el('p', product.received ? 'ok' : 'waiting', product.received
-    ? `Receipt confirmed by the distributor.`
-    : `The distributor has not yet confirmed receipt of this batch.`));
-
-  // --- the lots ---
-  out.push(el('h4', null, 'Milk that went into it'));
-  const lotList = el('ul', 'lots');
-  for (const lot of lots) {
-    const item = el('li');
-    item.append(el('span', 'strong', `Lot ${lot.id} · ${lot.litres} litres`));
-    item.append(el('span', 'muted', ` from farm ${shortAddress(lot.farm)} · registered ${asDate(lot.createdAt)}`));
-    item.append(el('div', lot.certificateId === 0n ? 'fail' : 'pass',
-      lot.certificateId === 0n
-        ? 'No valid audit at registration'
-        : `Covered by audit ${lot.certificateId}`));
-    lotList.append(item);
-  }
-  out.push(lotList);
-
-  // --- the audits behind those lots, each shown once ---
-  if (certs.size) {
-    out.push(el('h4', null, certs.size === 1 ? 'The farm audit' : 'The farm audits'));
-    for (const [certId, cert] of certs) {
-      const box = el('div', 'cert');
-      box.append(el('div', null,
-        `Audit ${certId} · issued ${asDate(cert.issuedAt)} · valid until ${asDate(cert.validUntil)}`));
-      box.append(el('div', 'muted', `Carried out by auditor ${shortAddress(cert.auditor)}`));
-      box.append(el('div', 'muted', `Audit document fingerprint ${cert.evidenceHash.slice(0, 18)}…`));
-      out.push(box);
-    }
-  }
+    ? 'Receipt confirmed by the distributor.'
+    : 'The distributor has not yet confirmed receipt.'));
 
   // --- everything, for anyone who wants to check it ---
+  // Audits are listed once each rather than repeated under every lot they cover.
   const full = el('details', 'full');
   full.append(el('summary', null, 'See the complete record'));
+
+  const iso = seconds => new Date(Number(seconds) * 1000).toISOString();
   const raw = [
     `Product ${id}`,
     `Litres: ${product.litres}`,
     `Processor: ${product.processor}`,
     `Distributor: ${product.distributor}`,
     `Receipt confirmed: ${product.received ? 'Yes' : 'No'}`,
-    `Recorded: ${new Date(Number(product.createdAt) * 1000).toISOString()}`,
+    `Recorded: ${iso(product.createdAt)}`,
+    '',
+    'Milk lots',
   ];
+
   for (const lot of lots) {
-    raw.push('', `Milk ${lot.id}: ${lot.litres} L; farm ${lot.farm}`,
-      `Certificate at registration: ${lot.certificateId || 'none'}`);
-    const cert = certs.get(lot.certificateId);
-    if (cert) raw.push(
-      `Auditor: ${cert.auditor}`,
-      `Issued: ${new Date(Number(cert.issuedAt) * 1000).toISOString()}`,
-      `Expiry: ${new Date(Number(cert.validUntil) * 1000).toISOString()}`,
-      `Audit SHA-256: ${cert.evidenceHash}`);
+    raw.push(`  ${lot.id}: ${lot.litres} L; farm ${lot.farm}; ` +
+      `audit ${lot.certificateId || 'none'}`);
   }
+
+  if (certs.size) {
+    raw.push('', 'Audits');
+    for (const [certId, cert] of certs) {
+      raw.push(
+        `  ${certId}: auditor ${cert.auditor}`,
+        `     issued ${iso(cert.issuedAt)}, expires ${iso(cert.validUntil)}`,
+        `     document SHA-256 ${cert.evidenceHash}`);
+    }
+  }
+
   full.append(el('pre', null, raw.join('\n')));
   out.push(full);
 
