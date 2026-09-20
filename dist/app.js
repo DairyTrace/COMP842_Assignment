@@ -1,7 +1,7 @@
-import { BrowserProvider, JsonRpcProvider, Contract, isAddress } from '/ethers.js';
+import { BrowserProvider, JsonRpcProvider, Contract, isAddress } from './ethers.js';
 
-const config = await (await fetch('/config.json')).json();
-const abi = await (await fetch('/abi.json')).json();
+const config = await (await fetch('./config.json')).json();
+const abi = await (await fetch('./abi.json')).json();
 
 // Index = the role's number in `enum Role` in contracts/DairyTrace.sol.
 const ROLE_NAMES = ['Unregistered', 'Auditor', 'Farm', 'Processor', 'Distributor'];
@@ -11,7 +11,21 @@ let writeContract;  // sends transactions through MetaMask (set by Connect below
 
 const $ = id => document.getElementById(id);
 const errorText = err => err.shortMessage || err.reason || err.message || String(err);
-const asDate = seconds => new Date(Number(seconds) * 1000).toISOString();
+/// Dates the way a person reads them, in their own timezone.
+const asDate = seconds =>
+  new Date(Number(seconds) * 1000).toLocaleDateString('en-NZ',
+    { day: 'numeric', month: 'long', year: 'numeric' });
+
+/// Addresses are 42 characters. Show enough to recognise, not enough to drown in.
+const shortAddress = address => `${address.slice(0, 6)}…${address.slice(-4)}`;
+
+/// Small DOM helper so the code below reads like the page it builds.
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
 
 // Built on first use
 async function getReadContract() {
@@ -36,42 +50,109 @@ async function lookupBatch(id) {
   const contract = await getReadContract();
   const product = await contract.getProduct(id);
 
-  const lines = [
-    `Product ${id}`,
-    `Milk input: ${product.litres} L`,
-    `Processor: ${product.processor}`,
-    `Distributor: ${product.distributor}`,
-    `Receipt confirmed: ${product.received ? 'Yes' : 'No'}`,
-    `Recorded: ${asDate(product.createdAt)}`,
-  ];
+  // Fetch every milk lot at once rather than one after another. A 20-lot
+  // product went from 20 sequential round trips to one batch of parallel ones.
+  const lots = await Promise.all(
+    product.milkIds.map(async milkId => {
+      const lot = await contract.milk(milkId);
+      // Copy the named fields out explicitly. ethers returns a Result object,
+      // which does not survive being spread into a plain object.
+      return {
+        id: milkId,
+        farm: lot.farm,
+        litres: lot.litres,
+        certificateId: lot.certificateId,
+        createdAt: lot.createdAt,
+      };
+    })
+  );
 
-  for (const milkId of product.milkIds) {
-    const milk = await contract.milk(milkId);
-    lines.push(
-      `\nMilk ${milkId}: ${milk.litres} L; farm ${milk.farm}`,
-      `Certificate at registration: ${milk.certificateId || 'none'}`,
-    );
-    if (milk.certificateId !== 0n) {
-      const cert = await contract.certificates(milk.certificateId);
-      lines.push(
-        `Auditor: ${cert.auditor}`,
-        `Issued: ${asDate(cert.issuedAt)}`,
-        `Expiry: ${asDate(cert.validUntil)}`,
-        `Audit SHA-256: ${cert.evidenceHash}`,
-      );
+  // Several lots usually share one certificate, so fetch each certificate once.
+  const certIds = [...new Set(lots.map(lot => lot.certificateId).filter(cert => cert !== 0n))];
+  const certList = await Promise.all(certIds.map(certId => contract.certificates(certId)));
+  const certs = new Map(certIds.map((certId, i) => [certId, certList[i]]));
+
+  const farms = [...new Set(lots.map(lot => lot.farm))];
+  const out = [];
+
+  // --- the verdict, kept in the original wording ---
+  const verdict = el('h3', product.certified ? 'pass' : 'fail',
+    product.certified
+      ? 'Eligible under the demo fair-trade rule'
+      : 'Not eligible under the demo fair-trade rule');
+  out.push(verdict);
+
+  out.push(el('p', 'headline',
+    `Product ${id} · ${product.litres} litres · pooled on ${asDate(product.createdAt)}`));
+
+  // --- what the verdict rests on, in a sentence ---
+  const certifiedCount = lots.filter(lot => lot.certificateId !== 0n).length;
+  out.push(el('p', 'summary', product.certified
+    ? `Pooled from ${lots.length} milk lot${lots.length === 1 ? '' : 's'} across ` +
+      `${farms.length} farm${farms.length === 1 ? '' : 's'}. Every lot carried a valid ` +
+      `farm audit at the moment it was registered.`
+    : `Pooled from ${lots.length} milk lot${lots.length === 1 ? '' : 's'}, of which ` +
+      `${lots.length - certifiedCount} had no valid farm audit when registered. ` +
+      `One uncertified lot makes the whole batch ineligible.`));
+
+  // --- has anyone signed for it? ---
+  out.push(el('p', product.received ? 'ok' : 'waiting', product.received
+    ? `Receipt confirmed by the distributor.`
+    : `The distributor has not yet confirmed receipt of this batch.`));
+
+  // --- the lots ---
+  out.push(el('h4', null, 'Milk that went into it'));
+  const lotList = el('ul', 'lots');
+  for (const lot of lots) {
+    const item = el('li');
+    item.append(el('span', 'strong', `Lot ${lot.id} · ${lot.litres} litres`));
+    item.append(el('span', 'muted', ` from farm ${shortAddress(lot.farm)} · registered ${asDate(lot.createdAt)}`));
+    item.append(el('div', lot.certificateId === 0n ? 'fail' : 'pass',
+      lot.certificateId === 0n
+        ? 'No valid audit at registration'
+        : `Covered by audit ${lot.certificateId}`));
+    lotList.append(item);
+  }
+  out.push(lotList);
+
+  // --- the audits behind those lots, each shown once ---
+  if (certs.size) {
+    out.push(el('h4', null, certs.size === 1 ? 'The farm audit' : 'The farm audits'));
+    for (const [certId, cert] of certs) {
+      const box = el('div', 'cert');
+      box.append(el('div', null,
+        `Audit ${certId} · issued ${asDate(cert.issuedAt)} · valid until ${asDate(cert.validUntil)}`));
+      box.append(el('div', 'muted', `Carried out by auditor ${shortAddress(cert.auditor)}`));
+      box.append(el('div', 'muted', `Audit document fingerprint ${cert.evidenceHash.slice(0, 18)}…`));
+      out.push(box);
     }
   }
 
-  const heading = document.createElement('h3');
-  heading.className = product.certified ? 'pass' : 'fail';
-  heading.textContent = product.certified
-    ? 'Eligible under the demo fair-trade rule'
-    : 'Not eligible under the demo fair-trade rule';
+  // --- everything, for anyone who wants to check it ---
+  const full = el('details', 'full');
+  full.append(el('summary', null, 'See the complete record'));
+  const raw = [
+    `Product ${id}`,
+    `Litres: ${product.litres}`,
+    `Processor: ${product.processor}`,
+    `Distributor: ${product.distributor}`,
+    `Receipt confirmed: ${product.received ? 'Yes' : 'No'}`,
+    `Recorded: ${new Date(Number(product.createdAt) * 1000).toISOString()}`,
+  ];
+  for (const lot of lots) {
+    raw.push('', `Milk ${lot.id}: ${lot.litres} L; farm ${lot.farm}`,
+      `Certificate at registration: ${lot.certificateId || 'none'}`);
+    const cert = certs.get(lot.certificateId);
+    if (cert) raw.push(
+      `Auditor: ${cert.auditor}`,
+      `Issued: ${new Date(Number(cert.issuedAt) * 1000).toISOString()}`,
+      `Expiry: ${new Date(Number(cert.validUntil) * 1000).toISOString()}`,
+      `Audit SHA-256: ${cert.evidenceHash}`);
+  }
+  full.append(el('pre', null, raw.join('\n')));
+  out.push(full);
 
-  const details = document.createElement('pre');
-  details.textContent = lines.join('\n');
-
-  $('result').replaceChildren(heading, details);
+  $('result').replaceChildren(...out);
 }
 
 $('lookup').onsubmit = async event => {
