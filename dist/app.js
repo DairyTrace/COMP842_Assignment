@@ -140,6 +140,22 @@ async function lookupBatch(id) {
   $('result').replaceChildren(...out);
 }
 
+/// Builds the address a QR code points at: this same page, with the batch
+/// already filled in. Printed on the packaging, it never changes for that batch.
+function labelUrl(productId) {
+  return `${location.origin}${location.pathname}?id=${productId}`;
+}
+
+/// Draws the QR code for a freshly created product and shows the link under it.
+function showLabel(productId) {
+  $('labelText').textContent =
+    `Print this on the packaging for product ${productId}. Scanning it opens the batch's public record.`;
+  $('qr').replaceChildren();
+  new QRCode($('qr'), { text: labelUrl(productId), width: 180, height: 180 });
+  $('labelUrl').textContent = labelUrl(productId);
+  $('label').hidden = false;
+}
+
 $('lookup').onsubmit = async event => {
   event.preventDefault();
   try {
@@ -152,6 +168,15 @@ $('lookup').onsubmit = async event => {
 
 //Stakeholder workspace (needs MetaMask)
 const CREATION_EVENTS = ['Certified', 'MilkCreated', 'ProductCreated'];
+
+/// Returns the id the contract assigned to a newly created record, or null.
+function idFromReceipt(receipt, eventName) {
+  for (const log of receipt.logs) {
+    const parsed = writeContract.interface.parseLog(log);
+    if (parsed?.name === eventName) return parsed.args.id;
+  }
+  return null;
+}
 
 function newRecordIds(receipt) {
   return receipt.logs
@@ -184,6 +209,10 @@ function onSubmit(formId, send) {
 
       const receipt = await tx.wait();
       $('status').textContent = ['Confirmed.', ...newRecordIds(receipt)].join(' ');
+
+      // A new product needs a label, so draw its QR code straight away.
+      const productId = idFromReceipt(receipt, 'ProductCreated');
+      if (productId !== null) showLabel(productId);
     } catch (err) {
       $('status').textContent = errorText(err);
     } finally {
@@ -238,3 +267,12 @@ $('connect').onclick = async () => {
 // Switching account or network in MetaMask invalidates writeContract, needs reload.
 window.ethereum?.on('accountsChanged', () => location.reload());
 window.ethereum?.on('chainChanged', () => location.reload());
+
+
+// A scanned QR code opens this page with ?id= on the end. Fill the box in and
+// look the batch up, so the person scanning sees the result straight away.
+const scanned = new URLSearchParams(location.search).get('id');
+if (scanned) {
+  $('lookup').querySelector('input[name="id"]').value = scanned;
+  lookupBatch(scanned).catch(err => { $('result').textContent = errorText(err); });
+}

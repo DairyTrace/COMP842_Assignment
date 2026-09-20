@@ -14,6 +14,7 @@ const FILES = {
   '/config.json': new URL('config.json', dist),
   '/abi.json': new URL('abi.json', dist),
   '/ethers.js': new URL('ethers.js', dist),
+  '/qrcode.js': new URL('qrcode.js', dist),
 };
 
 const CONTENT_TYPES = {

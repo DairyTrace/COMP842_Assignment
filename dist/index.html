@@ -92,6 +92,15 @@
         </label>
         <button>Pool into product</button>
       </form>
+
+      <!-- Filled in after a product is created, so the processor can print
+           the label that goes on the packaging. -->
+      <div id="label" hidden>
+        <h3>Label for this batch</h3>
+        <p id="labelText"></p>
+        <div id="qr"></div>
+        <p class="muted" id="labelUrl"></p>
+      </div>
     </div>
 
     <div id="distributorActions" hidden>
@@ -106,6 +115,7 @@
   </section>
 
 </main>
+<script src="qrcode.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
