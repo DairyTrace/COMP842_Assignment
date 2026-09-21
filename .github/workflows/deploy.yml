@@ -1,4 +1,3 @@
-.github/workflows/deploy.yml
 # Publishes the dist/ folder to GitHub Pages every time main changes.
 # Based on GitHub's official "Static HTML" Pages workflow.
 name: Deploy to GitHub Pages
