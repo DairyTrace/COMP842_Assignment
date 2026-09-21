@@ -72,3 +72,41 @@ a { color: #086788; overflow-wrap: anywhere; }
 
 #status, #account { overflow-wrap: anywhere; }
 #result { margin-top: 20px; }
+
+/* ---- consumer result ---- */
+#result h4 { font-size: 15px; margin: 22px 0 8px; }
+.headline { font-size: 17px; font-weight: 600; margin: 4px 0 10px; }
+.summary { margin: 0 0 14px; max-width: 62ch; }
+.muted { color: #5b6f7b; }
+.strong { font-weight: 600; }
+.ok { color: #176b3c; }
+.waiting { color: #8a5a10; }
+
+.lots { list-style: none; padding: 0; margin: 0; }
+.lots li {
+  padding: 12px 14px;
+  border: 1px solid #dbe3e8;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+.lots li .fail, .lots li .pass { font-size: 14px; margin-top: 4px; }
+
+.cert {
+  padding: 12px 14px;
+  border-left: 3px solid #126481;
+  background: #f4f9fb;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.full { margin-top: 20px; }
+.full summary { cursor: pointer; color: #086788; font-size: 14px; }
+.full pre { margin-top: 10px; }
+
+/* ---- batch label (QR) ---- */
+#label { padding-top: 10px; }
+#label h3 { margin-bottom: 6px; }
+#qr { margin: 12px 0; }
+#qr img, #qr canvas { display: block; }
+#labelUrl { font-size: 13px; overflow-wrap: anywhere; }

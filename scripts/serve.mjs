@@ -13,7 +13,8 @@ const FILES = {
   '/style.css': new URL('style.css', dist),
   '/config.json': new URL('config.json', dist),
   '/abi.json': new URL('abi.json', dist),
-  '/ethers.js': new URL('../node_modules/ethers/dist/ethers.min.js', import.meta.url),
+  '/ethers.js': new URL('ethers.js', dist),
+  '/qrcode.js': new URL('qrcode.js', dist),
 };
 
 const CONTENT_TYPES = {
