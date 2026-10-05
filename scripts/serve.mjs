@@ -15,6 +15,10 @@ const FILES = {
   '/abi.json': new URL('abi.json', dist),
   '/ethers.js': new URL('ethers.js', dist),
   '/qrcode.js': new URL('qrcode.js', dist),
+  '/fonts/ibm-plex-sans-latin-400-normal.woff2': new URL('fonts/ibm-plex-sans-latin-400-normal.woff2', dist),
+  '/fonts/ibm-plex-sans-latin-600-normal.woff2': new URL('fonts/ibm-plex-sans-latin-600-normal.woff2', dist),
+  '/fonts/ibm-plex-sans-latin-700-normal.woff2': new URL('fonts/ibm-plex-sans-latin-700-normal.woff2', dist),
+  '/fonts/space-grotesk-latin-700-normal.woff2': new URL('fonts/space-grotesk-latin-700-normal.woff2', dist),
 };
 
 const CONTENT_TYPES = {
@@ -22,6 +26,7 @@ const CONTENT_TYPES = {
   js: 'text/javascript',
   css: 'text/css',
   json: 'application/json',
+  woff2: 'font/woff2',
 };
 
 http.createServer(async (req, res) => {
