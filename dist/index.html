@@ -3,36 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>DairyTrace · Course spike</title>
+  <title>DairyTrace — where your milk came from</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main>
 
-  <section>
-    <h2>Consumer lookup</h2>
-    <p>Enter the final product batch ID.</p>
+  <header class="site">
+    <p class="brand">DairyTrace</p>
+    <p class="tagline">Fair trade dairy, recorded on a public blockchain</p>
+  </header>
+
+  <section id="consumer">
+    <h1 id="consumerTitle">Check a batch</h1>
+    <p id="consumerIntro" class="lead">Enter the batch number printed on the packaging, or scan its label.</p>
     <form id="lookup">
-      <label>Product batch ID
+      <label>Batch number
         <input name="id" type="number" min="1" required>
       </label>
       <button>Check batch</button>
     </form>
     <div id="result" aria-live="polite"></div>
+    <!-- Shown after a scan. -->
+    <button id="again" class="link" type="button" hidden>Check a different batch</button>
   </section>
 
-  <section>
+  <section id="workspace">
     <h2>Stakeholder workspace</h2>
     <button id="connect">Connect MetaMask</button>
     <p id="account">Wallet disconnected</p>
     <p id="status" role="status"></p>
     <p id="transaction"></p>
 
-    <!--
-      Every form below is hidden until Connect MetaMask reveals the ones the
-      account may use. Each form's id is the contract method app.js calls with it.
-      The role numbers match `enum Role` in contracts/DairyTrace.sol.
-    -->
+    <!-- Forms show after Connect, by role. -->
 
     <div id="adminActions" hidden>
       <h3>Register stakeholder</h3>
@@ -93,8 +96,7 @@
         <button>Pool into product</button>
       </form>
 
-      <!-- Filled in after a product is created, so the processor can print
-           the label that goes on the packaging. -->
+      <!-- QR label, after a product is created. -->
       <div id="label" hidden>
         <h3>Label for this batch</h3>
         <p id="labelText"></p>
@@ -113,6 +115,10 @@
       </form>
     </div>
   </section>
+
+  <footer class="site">
+    Read straight from the Ethereum Sepolia test network. Checking a batch needs no account or wallet.
+  </footer>
 
 </main>
 <script src="qrcode.js"></script>

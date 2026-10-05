@@ -3,23 +3,23 @@ import { BrowserProvider, JsonRpcProvider, Contract, isAddress } from './ethers.
 const config = await (await fetch('./config.json')).json();
 const abi = await (await fetch('./abi.json')).json();
 
-// Index = the role's number in `enum Role` in contracts/DairyTrace.sol.
+// Index = role number in the contract.
 const ROLE_NAMES = ['Unregistered', 'Auditor', 'Farm', 'Processor', 'Distributor'];
 
-let readContract;   // reads the chain over the public RPC (no wallet needed)
-let writeContract;  // sends transactions through MetaMask (set by Connect below)
+let readContract;   // read only, no wallet
+let writeContract;  // signs with MetaMask
 
 const $ = id => document.getElementById(id);
 const errorText = err => err.shortMessage || err.reason || err.message || String(err);
-/// Dates the way a person reads them, in their own timezone.
+// Readable local date.
 const asDate = seconds =>
   new Date(Number(seconds) * 1000).toLocaleDateString('en-NZ',
     { day: 'numeric', month: 'long', year: 'numeric' });
 
-/// Addresses are 42 characters. Show enough to recognise, not enough to drown in.
+// Short address.
 const shortAddress = address => `${address.slice(0, 6)}…${address.slice(-4)}`;
 
-/// Small DOM helper so the code below reads like the page it builds.
+// Make an element.
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -45,18 +45,16 @@ async function getReadContract() {
   return readContract;
 }
 
-// Consumer lookup (no wallet needed)
+// Consumer lookup (no wallet)
 async function lookupBatch(id) {
   const contract = await getReadContract();
   const product = await contract.getProduct(id);
 
-  // Fetch every milk lot at once rather than one after another. A 20-lot
-  // product went from 20 sequential round trips to one batch of parallel ones.
+  // Fetch lots in parallel.
   const lots = await Promise.all(
     product.milkIds.map(async milkId => {
       const lot = await contract.milk(milkId);
-      // Copy the named fields out explicitly. ethers returns a Result object,
-      // which does not survive being spread into a plain object.
+      // Copy fields; a Result can't be spread.
       return {
         id: milkId,
         farm: lot.farm,
@@ -67,7 +65,7 @@ async function lookupBatch(id) {
     })
   );
 
-  // Several lots usually share one certificate, so fetch each certificate once.
+  // Fetch each audit once.
   const certIds = [...new Set(lots.map(lot => lot.certificateId).filter(cert => cert !== 0n))];
   const certList = await Promise.all(certIds.map(certId => contract.certificates(certId)));
   const certs = new Map(certIds.map((certId, i) => [certId, certList[i]]));
@@ -75,35 +73,38 @@ async function lookupBatch(id) {
   const farms = [...new Set(lots.map(lot => lot.farm))];
   const out = [];
 
-  // --- the verdict, kept in the original wording ---
-  out.push(el('h3', product.certified ? 'pass' : 'fail',
-    product.certified
+  // Verdict
+  const verdict = el('div', `verdict ${product.certified ? 'is-pass' : 'is-fail'}`);
+  verdict.append(
+    el('p', 'verdict-title', product.certified
       ? 'Eligible under the demo fair-trade rule'
-      : 'Not eligible under the demo fair-trade rule'));
+      : 'Not eligible under the demo fair-trade rule'),
+    el('p', 'verdict-meta',
+      `Batch ${id} · ${product.litres} litres · pooled ${asDate(product.createdAt)}`));
+  out.push(verdict);
 
-  out.push(el('p', 'headline',
-    `Product ${id} · ${product.litres} litres · pooled ${asDate(product.createdAt)}`));
-
-  // --- one sentence covering where it came from and whether it was audited ---
+  // Summary
   const lotWord = `${lots.length} milk lot${lots.length === 1 ? '' : 's'}`;
   const farmWord = `${farms.length} farm${farms.length === 1 ? '' : 's'}`;
   const uncertified = lots.filter(lot => lot.certificateId === 0n).length;
 
-  // Every audit covering this batch expires at some point; quote the earliest.
+  // Earliest audit expiry
   const expiries = [...certs.values()].map(cert => Number(cert.validUntil));
   const soonest = expiries.length ? asDate(Math.min(...expiries)) : null;
 
   out.push(el('p', 'summary', product.certified
     ? `Made from ${lotWord} from ${farmWord}, each covered by a farm audit valid until ${soonest}.`
-    : `Made from ${lotWord} from ${farmWord}. ${uncertified} had no valid farm audit when registered, ` +
-      `and one uncertified lot makes the whole batch ineligible.`));
+    : `Made from ${lotWord} from ${farmWord}. ` +
+      (uncertified === lots.length
+        ? `None had a valid farm audit when registered.`
+        : `${uncertified} of them had no valid farm audit when registered, ` +
+          `and one uncertified lot makes the whole batch ineligible.`)));
 
-  out.push(el('p', product.received ? 'ok' : 'waiting', product.received
+  out.push(el('p', `receipt ${product.received ? 'ok' : 'waiting'}`, product.received
     ? 'Receipt confirmed by the distributor.'
     : 'The distributor has not yet confirmed receipt.'));
 
-  // --- everything, for anyone who wants to check it ---
-  // Audits are listed once each rather than repeated under every lot they cover.
+  // Full record
   const full = el('details', 'full');
   full.append(el('summary', null, 'See the complete record'));
 
@@ -140,13 +141,12 @@ async function lookupBatch(id) {
   $('result').replaceChildren(...out);
 }
 
-/// Builds the address a QR code points at: this same page, with the batch
-/// already filled in. Printed on the packaging, it never changes for that batch.
+// QR link: this page with ?id=
 function labelUrl(productId) {
   return `${location.origin}${location.pathname}?id=${productId}`;
 }
 
-/// Draws the QR code for a freshly created product and shows the link under it.
+// Show the QR label.
 function showLabel(productId) {
   $('labelText').textContent =
     `Print this on the packaging for product ${productId}. Scanning it opens the batch's public record.`;
@@ -166,10 +166,10 @@ $('lookup').onsubmit = async event => {
 };
 
 
-//Stakeholder workspace (needs MetaMask)
+// Stakeholder workspace (MetaMask)
 const CREATION_EVENTS = ['Certified', 'MilkCreated', 'ProductCreated'];
 
-/// Returns the id the contract assigned to a newly created record, or null.
+// New record's ID, or null.
 function idFromReceipt(receipt, eventName) {
   for (const log of receipt.logs) {
     const parsed = writeContract.interface.parseLog(log);
@@ -180,12 +180,12 @@ function idFromReceipt(receipt, eventName) {
 
 function newRecordIds(receipt) {
   return receipt.logs
-    .map(log => writeContract.interface.parseLog(log))  // null if the log isn't ours
+    .map(log => writeContract.interface.parseLog(log))  // null if not ours
     .filter(event => event && CREATION_EVENTS.includes(event.name))
     .map(event => `${event.name} ID ${event.args.id}`);
 }
 
-// Single form, `send` receives the typed-in values and returns the contract call.
+// Link a form to a contract call.
 function onSubmit(formId, send) {
   $(formId).onsubmit = async event => {
     event.preventDefault();
@@ -210,7 +210,7 @@ function onSubmit(formId, send) {
       const receipt = await tx.wait();
       $('status').textContent = ['Confirmed.', ...newRecordIds(receipt)].join(' ');
 
-      // A new product needs a label, so draw its QR code straight away.
+      // New product: show its QR.
       const productId = idFromReceipt(receipt, 'ProductCreated');
       if (productId !== null) showLabel(productId);
     } catch (err) {
@@ -253,7 +253,7 @@ $('connect').onclick = async () => {
 
     $('account').textContent = `${address} · ${roleName}`;
 
-    // Only show what this account may do.
+    // Show this role's forms only.
     $('adminActions').hidden = !isAdmin;
     $('auditorActions').hidden = roleName !== 'Auditor';
     $('farmActions').hidden = roleName !== 'Farm';
@@ -264,15 +264,33 @@ $('connect').onclick = async () => {
   }
 };
 
-// Switching account or network in MetaMask invalidates writeContract, needs reload.
+// Reload on account or network change.
 window.ethereum?.on('accountsChanged', () => location.reload());
 window.ethereum?.on('chainChanged', () => location.reload());
 
 
-// A scanned QR code opens this page with ?id= on the end. Fill the box in and
-// look the batch up, so the person scanning sees the result straight away.
+// QR scan: ?id= in the URL.
 const scanned = new URLSearchParams(location.search).get('id');
 if (scanned) {
+  // Shopper view: result only.
+  $('workspace').hidden = true;
+  $('lookup').hidden = true;
+  $('consumerIntro').hidden = true;
+  $('consumerTitle').textContent = 'Where your milk came from';
+  $('again').hidden = false;
+
+  // Show workspace if a wallet is already connected (no popup).
+  window.ethereum?.request({ method: 'eth_accounts' })
+    .then(accounts => { if (accounts.length) $('workspace').hidden = false; })
+    .catch(() => {});
+
   $('lookup').querySelector('input[name="id"]').value = scanned;
   lookupBatch(scanned).catch(err => { $('result').textContent = errorText(err); });
 }
+
+// Show the form again.
+$('again').onclick = () => {
+  $('lookup').hidden = false;
+  $('again').hidden = true;
+  $('lookup').querySelector('input[name="id"]').focus();
+};
