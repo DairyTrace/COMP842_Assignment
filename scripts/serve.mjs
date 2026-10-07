@@ -15,6 +15,7 @@ const FILES = {
   '/abi.json': new URL('abi.json', dist),
   '/ethers.js': new URL('ethers.js', dist),
   '/qrcode.js': new URL('qrcode.js', dist),
+  '/logo.svg': new URL('logo.svg', dist),
   '/fonts/ibm-plex-sans-latin-400-normal.woff2': new URL('fonts/ibm-plex-sans-latin-400-normal.woff2', dist),
   '/fonts/ibm-plex-sans-latin-600-normal.woff2': new URL('fonts/ibm-plex-sans-latin-600-normal.woff2', dist),
   '/fonts/ibm-plex-sans-latin-700-normal.woff2': new URL('fonts/ibm-plex-sans-latin-700-normal.woff2', dist),
@@ -27,6 +28,7 @@ const CONTENT_TYPES = {
   css: 'text/css',
   json: 'application/json',
   woff2: 'font/woff2',
+  svg: 'image/svg+xml',
 };
 
 http.createServer(async (req, res) => {
