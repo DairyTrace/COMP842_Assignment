@@ -1,4 +1,8 @@
-\
+# DairyTrace
+
+- Live site: https://dairytrace.github.io/COMP842_Assignment/
+- Contract (verified): https://sepolia.etherscan.io/address/0xe7Bc6C24b584ea72e911934531ca6e2A97b5658e#code
+
 ## Initialise
 
 ```bash
@@ -13,12 +17,14 @@ after you change and redeploy the contract.
 ## File Structure
 
 - `contracts/DairyTrace.sol`: Remix smart contract. Deployed on Remix, handles blockchain logic/permissioning/etc.
-- `dist/index.html`: Pure fsrontend html.
+- `dist/index.html`: Page markup.
 - `dist/app.js`: Connects the page to the contract. Handles front end logic.
 - `dist/style.css`: Frontend styling.
+- `dist/qrcode.js`: QR code library.
+- `dist/fonts/`: Fonts.
 - `dist/config.json`: Contract deployment address and public Sepolia read RPC. Used in app.js.
 - `dist/abi.json`: Contract interface (bytecode stuff), copied from Remix after each contract redeploy.
-- `scripts/serve.mjs`: Local web server. This is only needed when running the app locally. If deployed on a domain, e.g. github.io then we can remove this.
+- `scripts/serve.mjs`: Local web server. This is only needed when running the app locally. The live site updates on every push to main.
 - `package-lock.json`: Dependency installations.
 
 
@@ -40,10 +46,10 @@ after you change and redeploy the contract.
 5. Get free test ETH from an Ethereum Sepolia faucet.
 6. Fund each account with a small amount of Sepolia coins.
 7. In Remix's File Explorer create `DairyTrace.sol`. Copy in the entire contents of `contracts/DairyTrace.sol`. Switch MetaMask account to Admin.
-8. Open **Solidity Compiler**. Select **0.8.30** to match the contract. Compile `DairyTrace.sol`. 
-9. In **Deploy** on Remix, select browswer extension as the environment drop down, then select MetaMask as the subdrop down.
+8. Open **Solidity Compiler**. Select **0.8.30**, optimisation off. Compile `DairyTrace.sol`. 
+9. In **Deploy** on Remix, select Browser Extension as the environment drop down, then select MetaMask as the subdrop down.
 
-Under deploy, click the three dots next to DairyTract and click copy ABI. Paste it over the contents of `dist/abi.json`.
+Under deploy, click the three dots next to DairyTrace and click copy ABI. Paste it over the contents of `dist/abi.json`.
 9. Select **Admin** in MetaMask and **Sepolia** as the network.
 10. In Remix → **Deploy & Run Transactions**, choose **Browser Extension** and MetaMask. Approve the connection and verify the displayed account is Admin and the network is Sepolia.
 11. Select `DairyTrace` in the contract dropdown. Keep transaction **Value = 0**. Click **Deploy**, review MetaMask, and confirm.
@@ -65,13 +71,7 @@ The account line should say **Administrator**. Register Auditor, Farm A, Farm B,
 The UI only shows actions for the selected role. The contract independently enforces those permissions, including when someone bypasses the UI and calls from Remix.
 
 ## To create a new farm audit:
-1. In a second Terminal window create a mock audit file and hash its exact bytes:
-
-   ```bash
-   cd ~/Desktop/Blockchain/dairy-spike
-   printf '%s\n' 'Farm A audit passed.' > demo-audit.txt
-   shasum -a 256 demo-audit.txt
-   ```
-
-2. Copy the 64 hex characters, excluding the filename. Prefix them with `0x` for the certificate form.
-3. Connect as Auditor. In **Certify farm**, enter the farm's address, an expiry tomorrow or later, and the 0x + sha256 from previous step, then submit.
+1. Connect as Auditor.
+2. In **Certify farm**, enter the farm address and an expiry date.
+3. Click **Choose File** and pick the audit file. The hash fills in.
+4. Submit.

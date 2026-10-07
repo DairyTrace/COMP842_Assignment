@@ -3,7 +3,7 @@ import { BrowserProvider, JsonRpcProvider, Contract, isAddress } from './ethers.
 const config = await (await fetch('./config.json')).json();
 const abi = await (await fetch('./abi.json')).json();
 
-// Index = role number in the contract.
+// Same order as the roles in the contract.
 const ROLE_NAMES = ['Unregistered', 'Auditor', 'Farm', 'Processor', 'Distributor'];
 
 let readContract;   // read only, no wallet
@@ -16,6 +16,12 @@ const asDate = seconds =>
   new Date(Number(seconds) * 1000).toLocaleDateString('en-NZ',
     { day: 'numeric', month: 'long', year: 'numeric' });
 
+// Local date and time.
+const asTime = seconds =>
+  new Date(Number(seconds) * 1000).toLocaleString('en-NZ', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+
 // Short address.
 const shortAddress = address => `${address.slice(0, 6)}…${address.slice(-4)}`;
 
@@ -27,7 +33,7 @@ function el(tag, className, text) {
   return node;
 }
 
-// Built on first use
+// Connect to the contract once.
 async function getReadContract() {
   if (!readContract) {
     if (!isAddress(config.contractAddress)) {
@@ -50,11 +56,11 @@ async function lookupBatch(id) {
   const contract = await getReadContract();
   const product = await contract.getProduct(id);
 
-  // Fetch lots in parallel.
+  // Get all milk lots at once.
   const lots = await Promise.all(
     product.milkIds.map(async milkId => {
       const lot = await contract.milk(milkId);
-      // Copy fields; a Result can't be spread.
+      // Keep only what we show.
       return {
         id: milkId,
         farm: lot.farm,
@@ -65,7 +71,7 @@ async function lookupBatch(id) {
     })
   );
 
-  // Fetch each audit once.
+  // Get each audit once.
   const certIds = [...new Set(lots.map(lot => lot.certificateId).filter(cert => cert !== 0n))];
   const certList = await Promise.all(certIds.map(certId => contract.certificates(certId)));
   const certs = new Map(certIds.map((certId, i) => [certId, certList[i]]));
@@ -100,6 +106,14 @@ async function lookupBatch(id) {
         : `${uncertified} of them had no valid farm audit when registered, ` +
           `and one uncertified lot makes the whole batch ineligible.`)));
 
+  // When the farms registered the milk
+  const made = lots.map(lot => Number(lot.createdAt));
+  const first = asDate(Math.min(...made));
+  const last = asDate(Math.max(...made));
+  out.push(el('p', 'summary', first === last
+    ? `Milk registered by the farm on ${first}.`
+    : `Milk registered by the farms between ${first} and ${last}.`));
+
   out.push(el('p', `receipt ${product.received ? 'ok' : 'waiting'}`, product.received
     ? 'Receipt confirmed by the distributor.'
     : 'The distributor has not yet confirmed receipt.'));
@@ -108,21 +122,21 @@ async function lookupBatch(id) {
   const full = el('details', 'full');
   full.append(el('summary', null, 'See the complete record'));
 
-  const iso = seconds => new Date(Number(seconds) * 1000).toISOString();
   const raw = [
     `Product ${id}`,
     `Litres: ${product.litres}`,
     `Processor: ${product.processor}`,
     `Distributor: ${product.distributor}`,
     `Receipt confirmed: ${product.received ? 'Yes' : 'No'}`,
-    `Recorded: ${iso(product.createdAt)}`,
+    `Pooled: ${asTime(product.createdAt)}`,
     '',
     'Milk lots',
   ];
 
   for (const lot of lots) {
     raw.push(`  ${lot.id}: ${lot.litres} L; farm ${lot.farm}; ` +
-      `audit ${lot.certificateId || 'none'}`);
+      `audit ${lot.certificateId || 'none'}`,
+      `     registered ${asTime(lot.createdAt)}`);
   }
 
   if (certs.size) {
@@ -130,7 +144,7 @@ async function lookupBatch(id) {
     for (const [certId, cert] of certs) {
       raw.push(
         `  ${certId}: auditor ${cert.auditor}`,
-        `     issued ${iso(cert.issuedAt)}, expires ${iso(cert.validUntil)}`,
+        `     issued ${asTime(cert.issuedAt)}, expires ${asTime(cert.validUntil)}`,
         `     document SHA-256 ${cert.evidenceHash}`);
     }
   }
@@ -169,7 +183,7 @@ $('lookup').onsubmit = async event => {
 // Stakeholder workspace (MetaMask)
 const CREATION_EVENTS = ['Certified', 'MilkCreated', 'ProductCreated'];
 
-// New record's ID, or null.
+// Find the new record's ID.
 function idFromReceipt(receipt, eventName) {
   for (const log of receipt.logs) {
     const parsed = writeContract.interface.parseLog(log);
@@ -180,7 +194,7 @@ function idFromReceipt(receipt, eventName) {
 
 function newRecordIds(receipt) {
   return receipt.logs
-    .map(log => writeContract.interface.parseLog(log))  // null if not ours
+    .map(log => writeContract.interface.parseLog(log))
     .filter(event => event && CREATION_EVENTS.includes(event.name))
     .map(event => `${event.name} ID ${event.args.id}`);
 }
@@ -229,6 +243,15 @@ onSubmit('certifyFarm', v => writeContract.certifyFarm(v.farm, toUnixTime(v.unti
 onSubmit('createMilk', v => writeContract.createMilk(v.processor, BigInt(v.litres)));
 onSubmit('createProduct', v => writeContract.createProduct(toIdList(v.ids), v.distributor));
 onSubmit('receiveProduct', v => writeContract.receiveProduct(BigInt(v.id)));
+
+// Make the audit file's SHA-256 here. The file is not uploaded.
+$('auditFile').onchange = async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+  $('certifyFarm').querySelector('input[name="hash"]').value = '0x' + hex;
+};
 
 // Connect MetaMask account
 $('connect').onclick = async () => {

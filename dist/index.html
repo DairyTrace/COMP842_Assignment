@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>DairyTrace — where your milk came from</title>
+  <title>DairyTrace</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main>
 
   <header class="site">
-    <p class="brand">DairyTrace</p>
+    <p class="brand"><img src="logo.svg" alt="" width="26" height="26">DairyTrace</p>
     <p class="tagline">Fair trade traceability for dairy supply chains</p>
   </header>
 
@@ -65,8 +66,11 @@
         <label>Expiry (your local time)
           <input name="until" type="datetime-local" required>
         </label>
-        <label>Audit SHA-256 (0x + 64 hex digits)
-          <input name="hash" required>
+        <label>Audit file
+          <input id="auditFile" type="file">
+        </label>
+        <label>Audit SHA-256
+          <input name="hash" placeholder="Filled from the file" required>
         </label>
         <button>Certify farm</button>
       </form>
